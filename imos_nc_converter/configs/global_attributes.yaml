@@ -1,0 +1,36 @@
+# Global IMOS attributes - applied to all instruments
+# Edit these to change defaults across all converters
+
+mandatory_attributes:
+  abstract: "This data was collected as part of satellite altimeter calibration work in IMOS/SRS"
+  acknowledgement: "Any users of IMOS data are required to clearly acknowledge the source of the material derived from IMOS in the format: \"Data was sourced from Australia's Integrated Marine Observing System (IMOS) - IMOS is enabled by the National Collaborative Research Infrastructure Strategy (NCRIS).\""
+  citation: "The citation in a list of references is: \"IMOS [year-of-data-downloaded], [Title], [data-access-url], accessed [date-of-access]\""
+  Conventions: "CF-1.6,IMOS-1.4"
+  data_centre: "Australian Ocean Data Network (AODN)"
+  data_centre_email: "info@aodn.org.au"
+  disclaimer: "Data, products and services from IMOS are provided \"as is\" without any warranty as to fitness for a particular purpose."
+  license: "Creative Commons Attribution 4.0 International (CC BY 4.0): https://creativecommons.org/licenses/by/4.0/"
+  distribution_statment: "Data may be re-used, provided that related metadata explaining the data has been reviewed by the user, and the data is appropriately acknowledged."
+  institution: "SRS"
+  keywords_vocabulary: "IMOS parameter names. See https://github.com/aodn/imos-toolbox/blob/2.5/IMOS/imosParameters.txt"
+  naming_authority: "IMOS"
+  project: "Integrated Marine Observing System (IMOS)"
+  standard_name_vocabulary: "NetCDF Climate and Forecast (CF) Metadata Convention Standard Name Table 45"
+
+# Default values for configurable attributes
+defaults:
+  author: "Dr Benoit LEGRESY, CSIRO"
+  author_email: "benoit.legresy@csiro.au"
+  principal_investigator: "Dr Benoit LEGRESY, CSIRO"
+  references: "http://imos.org.au/facilities/srs/srscalval/"
+  site: "Bass Strait, TAS"
+
+# Geospatial attributes (set from parameters)
+geospatial:
+  positive: "down"
+  lat_max: null  # Set from latitude parameter
+  lat_min: null
+  lon_max: null  # Set from longitude parameter
+  lon_min: null
+  vertical_max: null  # Set from depth parameter
+  vertical_min: null

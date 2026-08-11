@@ -1,0 +1,62 @@
+# SIG500 (Nortek Signature 500) NetCDF variable schema
+
+instrument: "SIG500"
+default_channel_code: "W"
+default_keywords: "DEPTH, LATITUDE, LONGITUDE, NOMINAL_DEPTH, TIME, TIMESERIES"
+default_title: "Nortek Signature data from {location}"
+
+input_variables: {}
+
+output_variables:
+  TIME:
+    type: "f8"
+    dimensions: ["TIME"]
+    fill_value: null
+    attributes:
+      axis: "T"
+      calendar: "gregorian"
+      long_name: "time"
+      standard_name: "time"
+      units: "days since 1950-01-01T00:00:00 UTC"
+      valid_max: 90000.0
+      valid_min: 0.0
+  
+  LATITUDE:
+    type: "f8"
+    dimensions: []
+    fill_value: null
+    attributes:
+      axis: "Y"
+      long_name: "latitude"
+      reference_datum: "WGS84 coordinate reference system"
+      standard_name: "latitude"
+      units: "degrees_north"
+      valid_max: 90.0
+      valid_min: -90.0
+  
+  LONGITUDE:
+    type: "f8"
+    dimensions: []
+    fill_value: null
+    attributes:
+      axis: "X"
+      long_name: "longitude"
+      reference_datum: "WGS84 coordinate reference system"
+      standard_name: "longitude"
+      units: "degrees_east"
+      valid_max: 180.0
+      valid_min: -180.0
+  
+  NOMINAL_DEPTH:
+    type: "f4"
+    dimensions: []
+    fill_value: null
+    attributes:
+      axis: "Z"
+      long_name: "nominal depth"
+      positive: "down"
+      reference_datum: "sea surface"
+      standard_name: "depth"
+      units: "m"
+      valid_max: 12000.0
+      valid_min: -5.0

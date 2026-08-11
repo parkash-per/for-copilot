@@ -1,0 +1,18 @@
+#!/bin/bash -l
+#SBATCH --job-name=merge_VTC
+#SBATCH --time=02:00:00
+#SBATCH --ntasks=8
+#SBATCH --mem=480G
+#SBATCH --account=OD-223671
+
+
+module load miniconda3
+wdir="/datasets/work/oa-srsalt/work"
+cd ${wdir}
+conda activate /datasets/work/oa-srsalt/work/envs/btide
+srcdir=/datasets/work/oa-srsalt/work/scripts/benoit/mooring_proc/SIG500/
+
+date
+# python ${srcdir}/merge_VTC_ncs.py
+python ${srcdir}/merge_VTC_ncs.py
+date

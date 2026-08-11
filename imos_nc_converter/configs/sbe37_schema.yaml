@@ -1,0 +1,227 @@
+# SBE37 (SeaBird SBE37) CTD NetCDF variable schema
+
+instrument: "SBE37"
+default_channel_code: "CSTZ"
+default_keywords: "TIME, TIMESERIES, LATITUDE, LONGITUDE, NOMINAL_DEPTH, TEMP, CNDC, PSAL, PRES, DEPTH"
+default_title: "SBE37 CTD data from {location}"
+
+input_variables:
+  TEMP:
+    default: 999999.0
+    dtype: "f4"
+    required: false
+  TEMP_quality_control:
+    default: 1
+    dtype: "i1"
+    required: false
+  CNDC:
+    default: 999999.0
+    dtype: "f4"
+    required: false
+  CNDC_quality_control:
+    default: 1
+    dtype: "i1"
+    required: false
+  PSAL:
+    default: 999999.0
+    dtype: "f4"
+    required: false
+  PSAL_quality_control:
+    default: 1
+    dtype: "i1"
+    required: false
+  PRES:
+    default: 999999.0
+    dtype: "f4"
+    required: false
+  PRES_quality_control:
+    default: 1
+    dtype: "i1"
+    required: false
+  DEPTH:
+    default: null
+    dtype: "f4"
+    required: false
+  DEPTH_quality_control:
+    default: 0
+    dtype: "i1"
+    required: false
+
+output_variables:
+  TIME:
+    type: "f8"
+    dimensions: ["TIME"]
+    fill_value: null
+    attributes:
+      axis: "T"
+      calendar: "gregorian"
+      long_name: "time"
+      standard_name: "time"
+      units: "days since 1950-01-01T00:00:00 UTC"
+      valid_max: 90000.0
+      valid_min: 0.0
+  
+  TIMESERIES:
+    type: "i4"
+    dimensions: []
+    fill_value: null
+    attributes:
+      cf_role: "timeseries_id"
+      long_name: "unique_identifier_for_each_timeseries_feature_instance_in_this_file"
+  
+  LATITUDE:
+    type: "f8"
+    dimensions: []
+    fill_value: null
+    attributes:
+      axis: "Y"
+      long_name: "latitude"
+      reference_datum: "WGS84 coordinate reference system"
+      standard_name: "latitude"
+      units: "degrees_north"
+      valid_max: 90.0
+      valid_min: -90.0
+  
+  LONGITUDE:
+    type: "f8"
+    dimensions: []
+    fill_value: null
+    attributes:
+      axis: "X"
+      long_name: "longitude"
+      reference_datum: "WGS84 coordinate reference system"
+      standard_name: "longitude"
+      units: "degrees_east"
+      valid_max: 180.0
+      valid_min: -180.0
+  
+  NOMINAL_DEPTH:
+    type: "f4"
+    dimensions: []
+    fill_value: null
+    attributes:
+      axis: "Z"
+      long_name: "nominal depth"
+      positive: "down"
+      reference_datum: "sea surface"
+      standard_name: "depth"
+      units: "m"
+      valid_max: 12000.0
+      valid_min: -5.0
+  
+  TEMP:
+    type: "f4"
+    dimensions: ["TIME"]
+    fill_value: 999999.0
+    attributes:
+      coordinates: "TIME LATITUDE LONGITUDE NOMINAL_DEPTH"
+      long_name: "sea_water_temperature"
+      standard_name: "sea_water_temperature"
+      units: "degrees_Celsius"
+      valid_max: 40.0
+      valid_min: -2.5
+      ancillary_variables: "TEMP_quality_control"
+  
+  TEMP_quality_control:
+    type: "i1"
+    dimensions: ["TIME"]
+    fill_value: 99
+    attributes:
+      long_name: "quality flag for sea_water_temperature"
+      standard_name: "sea_water_temperature status_flag"
+      flag_values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      flag_meanings: "No_QC_performed Good_data Probably_good_data Bad_data_that_are_potentially_correctable Bad_data Value_changed Not_used Not_used Not_used Missing_value"
+  
+  CNDC:
+    type: "f4"
+    dimensions: ["TIME"]
+    fill_value: 999999.0
+    attributes:
+      coordinates: "TIME LATITUDE LONGITUDE NOMINAL_DEPTH"
+      long_name: "sea_water_electrical_conductivity"
+      standard_name: "sea_water_electrical_conductivity"
+      units: "S m-1"
+      valid_max: 50000.0
+      valid_min: 0.0
+      ancillary_variables: "CNDC_quality_control"
+  
+  CNDC_quality_control:
+    type: "i1"
+    dimensions: ["TIME"]
+    fill_value: 99
+    attributes:
+      long_name: "quality flag for sea_water_electrical_conductivity"
+      standard_name: "sea_water_electrical_conductivity status_flag"
+      flag_values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      flag_meanings: "No_QC_performed Good_data Probably_good_data Bad_data_that_are_potentially_correctable Bad_data Value_changed Not_used Not_used Not_used Missing_value"
+  
+  PSAL:
+    type: "f4"
+    dimensions: ["TIME"]
+    fill_value: 999999.0
+    attributes:
+      coordinates: "TIME LATITUDE LONGITUDE NOMINAL_DEPTH"
+      long_name: "sea_water_practical_salinity"
+      standard_name: "sea_water_practical_salinity"
+      units: "1"
+      valid_max: 41.0
+      valid_min: 2.0
+      ancillary_variables: "PSAL_quality_control"
+  
+  PSAL_quality_control:
+    type: "i1"
+    dimensions: ["TIME"]
+    fill_value: 99
+    attributes:
+      long_name: "quality flag for sea_water_practical_salinity"
+      standard_name: "sea_water_practical_salinity status_flag"
+      flag_values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      flag_meanings: "No_QC_performed Good_data Probably_good_data Bad_data_that_are_potentially_correctable Bad_data Value_changed Not_used Not_used Not_used Missing_value"
+  
+  PRES:
+    type: "f4"
+    dimensions: ["TIME"]
+    fill_value: 999999.0
+    attributes:
+      coordinates: "TIME LATITUDE LONGITUDE NOMINAL_DEPTH"
+      long_name: "sea_water_pressure"
+      standard_name: "sea_water_pressure"
+      units: "dbar"
+      valid_max: 12000.0
+      valid_min: -15.0
+      ancillary_variables: "PRES_quality_control"
+  
+  PRES_quality_control:
+    type: "i1"
+    dimensions: ["TIME"]
+    fill_value: 99
+    attributes:
+      long_name: "quality flag for sea_water_pressure"
+      standard_name: "sea_water_pressure status_flag"
+      flag_values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      flag_meanings: "No_QC_performed Good_data Probably_good_data Bad_data_that_are_potentially_correctable Bad_data Value_changed Not_used Not_used Not_used Missing_value"
+  
+  DEPTH:
+    type: "f4"
+    dimensions: ["TIME"]
+    fill_value: 999999.0
+    attributes:
+      coordinates: "TIME LATITUDE LONGITUDE NOMINAL_DEPTH"
+      long_name: "actual depth"
+      standard_name: "depth"
+      reference_datum: "sea surface"
+      positive: "down"
+      units: "m"
+      valid_max: 12000.0
+      valid_min: -5.0
+      ancillary_variables: "DEPTH_quality_control"
+  
+  DEPTH_quality_control:
+    type: "i1"
+    dimensions: ["TIME"]
+    fill_value: 99
+    attributes:
+      long_name: "quality flag for depth"
+      standard_name: "depth status_flag"
+      flag_values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      flag_meanings: "No_QC_performed Good_data Probably_good_data Bad_data_that_are_potentially_correctable Bad_data Value_changed Not_used Not_used Not_used Missing_value"
