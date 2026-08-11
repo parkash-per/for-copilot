@@ -46,7 +46,9 @@ def _normalize_processing_version(version: Any) -> str:
 
 
 def _parse_datetime(value: Any) -> pd.Timestamp:
-    parsed = pd.to_datetime(value, dayfirst=True, format="mixed", errors="coerce")
+    parsed = pd.to_datetime(value, format="mixed", errors="coerce")
+    if pd.isna(parsed):
+        parsed = pd.to_datetime(value, dayfirst=True, format="mixed", errors="coerce")
     if pd.isna(parsed):
         raise ValueError(f"Unable to parse datetime value: {value}")
     return parsed
@@ -140,7 +142,7 @@ def _apply_variable_attrs(dataset: xr.Dataset) -> xr.Dataset:
                 {
                     "long_name": f"{variable_name.removesuffix('_quality_control')} quality control flag",
                     "flag_values": np.array([1, 3, 4, 5], dtype=np.int8),
-                    "flag_meanings": "good_data probably_good_data bad_data missing_data",
+                    "flag_meanings": "good_data probably_bad_data bad_data missing_data",
                 }
             )
     return prepared
@@ -149,6 +151,12 @@ def _apply_variable_attrs(dataset: xr.Dataset) -> xr.Dataset:
 def _apply_global_attrs(dataset: xr.Dataset, metadata: dict[str, Any]) -> xr.Dataset:
     prepared = dataset.copy(deep=True)
     time_values = _time_values_to_datetime(prepared["TIME"].values)
+    if len(time_values) == 0:
+        raise ValueError("Cannot write an empty dataset.")
+    derived_start = pd.to_datetime(time_values.min())
+    derived_end = pd.to_datetime(time_values.max())
+    derived_start_text = "" if pd.isna(derived_start) else derived_start.strftime("%Y-%m-%dT%H:%M:%SZ")
+    derived_end_text = "" if pd.isna(derived_end) else derived_end.strftime("%Y-%m-%dT%H:%M:%SZ")
     attrs = dict(prepared.attrs)
     attrs.update(
         {
@@ -158,12 +166,8 @@ def _apply_global_attrs(dataset: xr.Dataset, metadata: dict[str, Any]) -> xr.Dat
             "deployment_id": str(metadata.get("deployment_id", attrs.get("deployment_id", ""))),
             "mooring_channels": str(metadata.get("mooring_channels", metadata.get("inst_channels", attrs.get("mooring_channels", "")))),
             "processing_version": _normalize_processing_version(metadata.get("version", attrs.get("processing_version", ""))),
-            "time_coverage_start": str(
-                metadata.get("time_coverage_start", pd.to_datetime(time_values.min()).strftime("%Y-%m-%dT%H:%M:%SZ"))
-            ),
-            "time_coverage_end": str(
-                metadata.get("time_coverage_end", pd.to_datetime(time_values.max()).strftime("%Y-%m-%dT%H:%M:%SZ"))
-            ),
+            "time_coverage_start": str(metadata.get("time_coverage_start") or derived_start_text),
+            "time_coverage_end": str(metadata.get("time_coverage_end") or derived_end_text),
             "output_stage": str(metadata.get("output_stage", attrs.get("output_stage", ""))),
         }
     )

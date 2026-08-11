@@ -42,6 +42,10 @@ def _normalize_window(window: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+def _format_time(value: pd.Timestamp) -> str:
+    return value.strftime("%Y-%m-%d %H:%M:%S.%f")
+
+
 def _resolve_bounds(dataset, window_spec: dict[str, Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
     row = _coerce_row(window_spec)
     time_values = _time_values_to_datetime(dataset["TIME"].values)
@@ -61,8 +65,12 @@ def _resolve_bounds(dataset, window_spec: dict[str, Any]) -> tuple[pd.Timestamp,
         or file_end
     )
 
-    start_time = pd.to_datetime(start_raw, dayfirst=True, format="mixed", errors="coerce")
-    end_time = pd.to_datetime(end_raw, dayfirst=True, format="mixed", errors="coerce")
+    start_time = pd.to_datetime(start_raw, format="mixed", errors="coerce")
+    end_time = pd.to_datetime(end_raw, format="mixed", errors="coerce")
+    if pd.isna(start_time):
+        start_time = pd.to_datetime(start_raw, dayfirst=True, format="mixed", errors="coerce")
+    if pd.isna(end_time):
+        end_time = pd.to_datetime(end_raw, dayfirst=True, format="mixed", errors="coerce")
     if pd.isna(start_time):
         start_time = file_start
     if pd.isna(end_time):
@@ -86,10 +94,12 @@ def build_qc_windows(dataset, window_spec):
     flag = int(spec.get("flag", 4))
     qc_vars = spec.get("qc_vars")
     comment = spec.get("comment", "outside deployment window")
+    before_end = start_time - pd.Timedelta(microseconds=1)
+    after_start = end_time + pd.Timedelta(microseconds=1)
 
     windows = [
-        {"start": "", "end": start_time.strftime("%Y-%m-%d %H:%M:%S"), "flag": flag, "comment": comment},
-        {"start": end_time.strftime("%Y-%m-%d %H:%M:%S"), "end": "", "flag": flag, "comment": comment},
+        {"start": "", "end": _format_time(before_end), "flag": flag, "comment": comment},
+        {"start": _format_time(after_start), "end": "", "flag": flag, "comment": comment},
     ]
     if qc_vars is not None:
         for window in windows:

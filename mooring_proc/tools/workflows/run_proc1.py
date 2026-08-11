@@ -38,8 +38,12 @@ def _require_aqd(row):
 def _resolve_time_bounds(row, overrides: dict[str, Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
     start_raw = overrides.get("time_coverage_start") or row.get("time_coverage_start") or row.get("deploy_date")
     end_raw = overrides.get("time_coverage_end") or row.get("time_coverage_end") or row.get("recovery_date")
-    start_time = pd.to_datetime(start_raw, dayfirst=True, format="mixed", errors="coerce")
-    end_time = pd.to_datetime(end_raw, dayfirst=True, format="mixed", errors="coerce")
+    start_time = pd.to_datetime(start_raw, format="mixed", errors="coerce")
+    end_time = pd.to_datetime(end_raw, format="mixed", errors="coerce")
+    if pd.isna(start_time):
+        start_time = pd.to_datetime(start_raw, dayfirst=True, format="mixed", errors="coerce")
+    if pd.isna(end_time):
+        end_time = pd.to_datetime(end_raw, dayfirst=True, format="mixed", errors="coerce")
     if pd.isna(start_time) or pd.isna(end_time):
         raise ValueError("Deployment time_coverage_start/time_coverage_end must be available for proc_1.")
     return start_time, end_time

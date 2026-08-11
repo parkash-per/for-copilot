@@ -44,7 +44,9 @@ def _coerce_table(source: Any, table_name: str | None = None) -> tuple[pd.DataFr
 def _format_yyyymm(value: Any) -> str:
     if _is_blank(value):
         return ""
-    parsed = pd.to_datetime(value, dayfirst=True, format="mixed", errors="coerce")
+    parsed = pd.to_datetime(value, format="mixed", errors="coerce")
+    if pd.isna(parsed):
+        parsed = pd.to_datetime(value, dayfirst=True, format="mixed", errors="coerce")
     if pd.isna(parsed):
         return str(value).strip()
     return parsed.strftime("%Y%m")
@@ -189,7 +191,12 @@ def update_metadata_file_fields(metadata_table, file_record, updates):
         if key not in alias_map:
             valid = ", ".join(sorted(alias_map))
             raise ValueError(f"Unsupported metadata field '{key}'. Use one of: {valid}")
-        table.at[row_index, alias_map[key]] = "" if value is None else str(value)
+        target_column = alias_map[key]
+        if target_column not in table.columns:
+            table[target_column] = ""
+        if table[target_column].dtype != object:
+            table[target_column] = table[target_column].astype(object)
+        table.at[row_index, target_column] = "" if value is None else str(value)
 
     if source_path is not None:
         table.to_csv(source_path, index=False)
@@ -213,7 +220,6 @@ def list_instruments(
     if year is not None:
         parsed = pd.to_datetime(
             filtered.get("time_coverage_start", filtered.get("deploy_date")),
-            dayfirst=True,
             format="mixed",
             errors="coerce",
         )
@@ -221,7 +227,6 @@ def list_instruments(
         if "deploy_date" in filtered.columns:
             deploy_years = pd.to_datetime(
                 filtered["deploy_date"],
-                dayfirst=True,
                 format="mixed",
                 errors="coerce",
             ).dt.year.eq(int(year))
