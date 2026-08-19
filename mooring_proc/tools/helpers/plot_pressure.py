@@ -40,6 +40,9 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+# Pressure unit conversion: 1 PSI = 0.6894757 dbar
+_PSI_TO_DBAR = 0.6894757
+
 from ..database_lookup import load_metadata_table
 from .plot_qa_qc import _to_py_dt
 
@@ -81,7 +84,7 @@ def _load_pressure(filepath: str) -> pd.Series:
             format="mixed",
             errors="coerce",
         )
-        pres_dbar = pd.to_numeric(raw["PRES"], errors="coerce") * 0.6894757
+        pres_dbar = pd.to_numeric(raw["PRES"], errors="coerce") * _PSI_TO_DBAR
         return _finalize(pd.Series(pres_dbar.values, index=dt, name="pressure_dbar"))
 
     if ext in (".csv", ".txt", ".aqd"):
@@ -262,9 +265,17 @@ def plot_pressure_comparison(
     if ref_series.empty:
         raise ValueError(f"Reference pressure series is empty: {pressure_file_used}")
 
+    # Normalise both timeseries to tz-naive UTC nanoseconds before interpolation so that
+    # mixed-timezone or tz-aware datetimes do not raise a TypeError on .astype("int64").
+    def _to_ns(dt_like) -> np.ndarray:
+        idx = pd.DatetimeIndex(pd.to_datetime(dt_like))
+        if idx.tz is not None:
+            idx = idx.tz_convert("UTC").tz_localize(None)
+        return idx.asi8.astype(float)
+
     p_ref = np.interp(
-        t.astype("int64"),
-        ref_series.index.astype("int64"),
+        _to_ns(t),
+        _to_ns(ref_series.index),
         ref_series.values.astype(float),
         left=np.nan,
         right=np.nan,
