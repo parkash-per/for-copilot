@@ -100,10 +100,10 @@ def _resolve_stage_file(stage_dir: Path, configured_name: Any) -> Path:
         candidate = stage_dir / str(configured_name).strip()
         if candidate.exists():
             return candidate
-    candidates = sorted(stage_dir.glob("*.nc"))
-    if not candidates:
-        raise FileNotFoundError(f"No NetCDF files found in {stage_dir}")
-    return candidates[-1]
+    try:
+        return max(stage_dir.glob("*.nc"), key=lambda path: path.stat().st_mtime)
+    except ValueError as exc:
+        raise FileNotFoundError(f"No NetCDF files found in {stage_dir}") from exc
 
 
 def _resolve_existing_proc1_path(row, config: dict[str, Any]) -> Path:
@@ -142,12 +142,25 @@ def run_proc1(config, instrument_id=None, source_path=None):
         proc_1_path = _resolve_existing_proc1_path(row, config)
         with xr.open_dataset(proc_1_path) as existing:
             existing_dataset = existing.load()
+        start_time, end_time = _resolve_time_bounds(row, config)
+        qc_vars = [name for name in existing_dataset.data_vars if name.endswith("_quality_control")]
+        deployment_windows = build_qc_windows(
+            existing_dataset,
+            {
+                "row": row.to_dict(),
+                "time_coverage_start": start_time,
+                "time_coverage_end": end_time,
+                "flag": 4,
+                "qc_vars": qc_vars or None,
+                "comment": "outside deployment window",
+            },
+        )
         update_metadata_file_fields(metadata_source, inst_deploy_id, {"proc_1_file": proc_1_path.name})
         return {
             "metadata_row": row,
-            "dataset": existing_dataset,
+            "dataset": existing_dataset.copy(deep=True),
             "review_dataset": existing_dataset,
-            "deployment_windows": [],
+            "deployment_windows": deployment_windows,
             "output_path": str(proc_1_path),
             "reused_existing": True,
         }
