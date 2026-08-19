@@ -1,3 +1,5 @@
 """IMOS delivery helpers for mooring_proc."""
 
-# TODO: Expose stable IMOS helper functions when implementations exist.
+from .postprocess import apply_postprocess, set_deployment_coordinates
+
+__all__ = ["apply_postprocess", "set_deployment_coordinates"]

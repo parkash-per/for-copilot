@@ -1,4 +1,27 @@
-"""AQD parser for raw Nortek text files."""
+"""AQD parser for raw Nortek text files.
+
+Supports two text export formats:
+
+``.aqd`` — standard Nortek Aquadopp text export
+    ``MM DD YYYY HH MM SS <19 numeric fields>``
+    Fields 13 = Depth (m), 14 = Temperature (°C),
+    17 = Speed (m/s), 18 = Direction (deg).
+
+``.dat`` — historic Nortek export (adapter)
+    Two common layouts are tried automatically:
+
+    1. Same layout as ``.aqd`` — detected when the first six tokens form
+       a valid date (no leading burst counter).
+    2. Burst-counter-prefixed layout —
+       ``BurstNo MM DD YYYY HH MM SS SoundSpeed Heading Pitch Roll
+         Pressure(dbar) Temp(°C) East(m/s) North(m/s) Up(m/s) A1 A2 A3``
+
+    **Format ambiguity note:** no canonical sample ``.dat`` files were
+    available during development.  If your ``.dat`` files use a different
+    column ordering, pass ``dat_layout='aqd'`` or ``dat_layout='burst'``
+    via the ``config`` dict to force a specific path, or raise an issue
+    with a sample file.
+"""
 
 from __future__ import annotations
 
@@ -107,6 +130,98 @@ def _build_dataframe(input_file: Path) -> pd.DataFrame:
     return dataframe
 
 
+# ---------------------------------------------------------------------------
+# .dat historic format adapter
+# ---------------------------------------------------------------------------
+
+def _parse_dat_line_burst_prefix(
+    tokens: list[str],
+) -> dict[str, Any] | None:
+    """Parse a Nortek .dat line with a leading burst counter.
+
+    Expected layout (0-based token indices)::
+
+        0         1   2    3     4    5   6       7          8
+        BurstNo   MM  DD  YYYY   HH  MM  SS  SoundSpeed  Heading
+            9      10    11       12    13     14    15   16  17  18
+        Pitch   Roll  Pressure  Temp  East  North  Up   A1  A2  A3
+    """
+    if len(tokens) < 16:
+        return None
+    try:
+        # Token 0 is the burst counter (integer — skip it)
+        int(tokens[0])
+        month, day, year = int(tokens[1]), int(tokens[2]), int(tokens[3])
+        hour, minute, second = int(tokens[4]), int(tokens[5]), int(tokens[6])
+        timestamp = datetime(year, month, day, hour, minute, second)
+        # Pressure (dbar) at index 11, temperature at 12
+        depth = float(tokens[11])
+        temp = float(tokens[12])
+        # ENU velocities (m/s) → store in cm/s to match .aqd convention
+        ucur = float(tokens[13]) * 100.0
+        vcur = float(tokens[14]) * 100.0
+    except (ValueError, IndexError):
+        return None
+    return {"datetime": timestamp, "Temperature": temp, "Depth": depth,
+            "UCUR": ucur, "VCUR": vcur}
+
+
+def _build_dataframe_from_dat(input_file: Path, layout: str = "auto") -> pd.DataFrame:
+    """Read a historic Nortek AQD ``.dat`` file.
+
+    Parameters
+    ----------
+    input_file:
+        Path to the ``.dat`` file.
+    layout:
+        ``'auto'`` — try the standard ``.aqd`` text layout first, then
+        the burst-counter-prefixed layout.
+        ``'aqd'`` — force the standard ``.aqd`` text layout.
+        ``'burst'`` — force the burst-counter-prefixed layout.
+    """
+    rows: list[dict[str, Any]] = []
+    with open(input_file, "rt", encoding="utf-8", errors="ignore") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line or line.startswith(("%", "#", "/")):
+                continue
+            tokens = line.split()
+
+            # --- try standard .aqd layout ---------------------------------
+            if layout in ("auto", "aqd"):
+                parsed = _parse_aqd_line(line)
+                if parsed is not None:
+                    timestamp, numeric_fields = parsed
+                    if len(numeric_fields) >= 19:
+                        speed = numeric_fields[17]
+                        dir_rad = math.radians(numeric_fields[18])
+                        rows.append({
+                            "datetime": timestamp,
+                            "Temperature": numeric_fields[14],
+                            "Depth": numeric_fields[13],
+                            "UCUR": speed * math.sin(dir_rad) * 100.0,
+                            "VCUR": speed * math.cos(dir_rad) * 100.0,
+                        })
+                        continue
+                    if layout == "aqd":
+                        continue
+
+            # --- try burst-counter-prefixed layout -----------------------
+            if layout in ("auto", "burst"):
+                row_dict = _parse_dat_line_burst_prefix(tokens)
+                if row_dict is not None:
+                    rows.append(row_dict)
+
+    dataframe = pd.DataFrame(rows)
+    if dataframe.empty:
+        raise ValueError(
+            f"No valid records parsed from .dat file: {input_file}.  "
+            "If the column layout differs from the two supported formats "
+            "('aqd' and 'burst'), set dat_layout explicitly in config."
+        )
+    return dataframe
+
+
 def _range_tag(time_values: pd.Series) -> str:
     time_start = pd.to_datetime(time_values.min())
     time_end = pd.to_datetime(time_values.max())
@@ -144,10 +259,34 @@ def _build_dataset(dataframe: pd.DataFrame, row: dict[str, Any], input_file: Pat
 
 
 def read_aqd(input_path, config=None):
-    """Read AQD input and return dataframe, dataset, and file metadata."""
+    """Read AQD input and return dataframe, dataset, and file metadata.
+
+    Supports ``.aqd`` (standard Nortek text export) and ``.dat`` (historic
+    text export).  The appropriate parser is selected automatically based
+    on the file suffix.
+
+    Parameters
+    ----------
+    input_path:
+        Path to the input file, or ``None`` to resolve from *config*.
+    config:
+        Metadata dict (or ``{'metadata_row': <row>}``).  Recognised keys:
+
+        - Standard metadata keys (``latitude``, ``longitude``, etc.)
+        - ``dat_layout``: ``'auto'`` *(default)*, ``'aqd'``, or
+          ``'burst'`` — controls which column layout is tried for
+          ``.dat`` files.
+    """
     row = _coerce_row(config)
     resolved_input_path = _resolve_input_path(input_path, row)
-    dataframe = _build_dataframe(resolved_input_path)
+    suffix = resolved_input_path.suffix.lower()
+
+    if suffix == ".dat":
+        dat_layout = str(row.get("dat_layout", "auto")).strip().lower()
+        dataframe = _build_dataframe_from_dat(resolved_input_path, layout=dat_layout)
+    else:
+        dataframe = _build_dataframe(resolved_input_path)
+
     dataset = _build_dataset(dataframe, row, resolved_input_path)
     return {
         "dataframe": dataframe,
