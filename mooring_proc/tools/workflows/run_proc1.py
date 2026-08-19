@@ -51,6 +51,11 @@ def _instrument_type(row: Any) -> str:
 
 
 def _resolve_time_bounds(row, overrides: dict[str, Any]) -> tuple[pd.Timestamp, pd.Timestamp]:
+    def _normalize_timestamp(value: pd.Timestamp) -> pd.Timestamp:
+        if getattr(value, "tzinfo", None) is not None:
+            return value.tz_convert("UTC").tz_localize(None)
+        return value
+
     start_raw = overrides.get("time_coverage_start") or row.get("time_coverage_start") or row.get("deploy_date")
     end_raw = overrides.get("time_coverage_end") or row.get("time_coverage_end") or row.get("recovery_date")
     start_time = pd.to_datetime(start_raw, format="mixed", errors="coerce")
@@ -61,7 +66,7 @@ def _resolve_time_bounds(row, overrides: dict[str, Any]) -> tuple[pd.Timestamp, 
         end_time = pd.to_datetime(end_raw, dayfirst=True, format="mixed", errors="coerce")
     if pd.isna(start_time) or pd.isna(end_time):
         raise ValueError("Deployment time_coverage_start/time_coverage_end must be available for proc_1.")
-    return start_time, end_time
+    return _normalize_timestamp(start_time), _normalize_timestamp(end_time)
 
 
 def _stage_dir(path_value: Any) -> Path:
@@ -72,27 +77,6 @@ def _stage_dir(path_value: Any) -> Path:
         path = path.resolve()
     path.mkdir(parents=True, exist_ok=True)
     return path
-
-
-def _plot_review(dataset, output_path: Path, title: str, start_time: pd.Timestamp, end_time: pd.Timestamp):
-    import matplotlib.pyplot as plt
-
-    required = ["TEMP", "DEPTH", "UCUR", "VCUR"]
-    if not all(name in dataset.variables for name in required):
-        return
-    frame = dataset[required].to_dataframe().reset_index()
-    figure, axes = plt.subplots(4, 1, figsize=(12, 10), sharex=True)
-    for axis, variable_name in zip(axes, ("TEMP", "DEPTH", "UCUR", "VCUR")):
-        axis.plot(frame["TIME"], frame[variable_name], linewidth=0.8)
-        axis.axvline(start_time, color="tab:red", linestyle="--", linewidth=1)
-        axis.axvline(end_time, color="tab:red", linestyle="--", linewidth=1)
-        axis.set_ylabel(variable_name)
-    axes[-1].set_xlabel("TIME")
-    figure.suptitle(title)
-    figure.tight_layout()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    figure.savefig(output_path, dpi=150)
-    plt.close(figure)
 
 
 def _select_dataset(parsed: dict[str, Any], config: dict[str, Any]):
@@ -138,11 +122,6 @@ def run_proc1(config, instrument_id=None, source_path=None):
     output_name = build_output_filename(stage_metadata)
     proc_1_dir = _stage_dir(row.get("proc_1_path"))
     output_path = proc_1_dir / output_name
-    pre_plot_path = proc_1_dir / f"{output_path.stem}_pre_trim_review.png"
-    post_plot_path = proc_1_dir / f"{output_path.stem}_post_trim_review.png"
-
-    if inst_type == "AQD":
-        _plot_review(dataset, pre_plot_path, "AQD proc_1 pre-trim review", start_time, end_time)
 
     qc_vars = [name for name in dataset.data_vars if name.endswith("_quality_control")]
     deployment_windows = build_qc_windows(
@@ -158,15 +137,13 @@ def run_proc1(config, instrument_id=None, source_path=None):
     )
     dataset_with_qc = apply_qc_flag_windows(dataset, deployment_windows)
     trimmed_dataset = dataset_with_qc.sel(TIME=slice(start_time, end_time))
-    if inst_type == "AQD":
-        _plot_review(trimmed_dataset, post_plot_path, "AQD proc_1 post-trim review", start_time, end_time)
 
     proc_1_output = write_imos_file(trimmed_dataset, output_path, metadata=stage_metadata)
     update_metadata_file_fields(metadata_source, inst_deploy_id, {"proc_1_file": Path(proc_1_output).name})
     return {
         "metadata_row": row,
         "dataset": trimmed_dataset,
+        "review_dataset": dataset_with_qc,
+        "deployment_windows": deployment_windows,
         "output_path": proc_1_output,
-        "pre_trim_plot": str(pre_plot_path) if inst_type == "AQD" else None,
-        "post_trim_plot": str(post_plot_path) if inst_type == "AQD" else None,
     }
