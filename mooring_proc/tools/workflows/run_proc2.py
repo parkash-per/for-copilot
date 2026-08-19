@@ -1,4 +1,4 @@
-"""AQD proc_2 workflow."""
+"""Instrument proc_2 workflow (manual QC on proc_1)."""
 
 from __future__ import annotations
 
@@ -28,9 +28,14 @@ def _instrument_key(config: dict[str, Any], instrument_id: Any):
     raise ValueError("An inst_deploy_ID or instrument_id is required.")
 
 
-def _require_aqd(row):
-    if str(row.get("inst_type", "")).strip().upper() != "AQD":
-        raise NotImplementedError("Only AQD workflows are implemented.")
+_SUPPORTED = {"AQD", "SBE26", "SBE37", "RBRQ", "SIG500"}
+
+
+def _instrument_type(row: Any) -> str:
+    inst = str(row.get("inst_type", "")).strip().upper()
+    if inst not in _SUPPORTED:
+        raise NotImplementedError(f"Unsupported instrument '{inst}'.")
+    return inst
 
 
 def _stage_dir(path_value: Any) -> Path:
@@ -73,7 +78,7 @@ def _load_dataset(input_dataset, row) -> xr.Dataset:
 
 
 def run_proc2(config, instrument_id=None, input_dataset=None):
-    """Run the AQD proc_2 workflow without re-trimming proc_1 data."""
+    """Run proc_2 workflow without re-trimming proc_1 data."""
     metadata_source = _metadata_source(config)
     inst_deploy_id = _instrument_key(config, instrument_id)
     _, row, cfg, _ = get_instrument_context(
@@ -81,7 +86,7 @@ def run_proc2(config, instrument_id=None, input_dataset=None):
         inst_deploy_id,
         deployment_id=config.get("deployment_id"),
     )
-    _require_aqd(row)
+    inst_type = _instrument_type(row)
 
     proc_1_dataset = _load_dataset(input_dataset, row)
     manual_qc_flags = list(config.get("manual_qc_flags", config.get("flag_windows", [])) or [])
@@ -93,8 +98,8 @@ def run_proc2(config, instrument_id=None, input_dataset=None):
             "output_stage": "proc_2",
             "output_name_mode": "internal",
             "location": cfg.get("location", row.get("location", "")),
-            "instrument": row.get("inst_type", "AQD"),
-            "inst_type": row.get("inst_type", "AQD"),
+            "instrument": row.get("inst_type", inst_type),
+            "inst_type": row.get("inst_type", inst_type),
             "inst_id": row.get("inst_id", ""),
             "depth": row.get("nominal_depth", cfg.get("nominal_depth", 0)),
             "start_of_good_data": proc_2_dataset.attrs.get(

@@ -1,2 +1,124 @@
-# Placeholder schema for rbrq_schema
-# TODO: Define required fields, types, and validation rules.
+# RBRQ (RBR Quartz Pressure) NetCDF variable schema
+
+instrument: "RBRQ"
+default_channel_code: "PT"
+default_keywords: "DEPTH, LATITUDE, LONGITUDE, NOMINAL_DEPTH, PRES, TEMP, TIME, TIMESERIES"
+default_title: "RBR Quartz Pressure data from {location}"
+
+input_variables:
+  PRES:
+    default: 999999.0
+    dtype: "f4"
+    required: false
+  PRES_quality_control:
+    default: 1
+    dtype: "i1"
+    required: false
+  TEMP:
+    default: -999999.0
+    dtype: "f4"
+    required: false
+  TEMP_quality_control:
+    default: 1
+    dtype: "i1"
+    required: false
+
+output_variables:
+  TIME:
+    type: "f8"
+    dimensions: ["TIME"]
+    fill_value: null
+    attributes:
+      axis: "T"
+      calendar: "gregorian"
+      long_name: "time"
+      standard_name: "time"
+      units: "days since 1950-01-01T00:00:00 UTC"
+      valid_max: 90000.0
+      valid_min: 0.0
+  
+  LATITUDE:
+    type: "f8"
+    dimensions: []
+    fill_value: null
+    attributes:
+      axis: "Y"
+      long_name: "latitude"
+      reference_datum: "WGS84 coordinate reference system"
+      standard_name: "latitude"
+      units: "degrees_north"
+      valid_max: 90.0
+      valid_min: -90.0
+  
+  LONGITUDE:
+    type: "f8"
+    dimensions: []
+    fill_value: null
+    attributes:
+      axis: "X"
+      long_name: "longitude"
+      reference_datum: "WGS84 coordinate reference system"
+      standard_name: "longitude"
+      units: "degrees_east"
+      valid_max: 180.0
+      valid_min: -180.0
+  
+  NOMINAL_DEPTH:
+    type: "f4"
+    dimensions: []
+    fill_value: -99999.0
+    attributes:
+      axis: "Z"
+      long_name: "nominal depth"
+      positive: "down"
+      reference_datum: "sea surface"
+      standard_name: "depth"
+      units: "m"
+      valid_max: 12000.0
+      valid_min: -5.0
+  
+  PRES:
+    type: "f4"
+    dimensions: ["TIME"]
+    fill_value: 999999.0
+    attributes:
+      ancillary_variables: "PRES_quality_control"
+      coordinates: "TIME LATITUDE LONGITUDE NOMINAL_DEPTH"
+      long_name: "sea_water_pressure"
+      standard_name: "sea_water_pressure"
+      units: "dbar"
+      valid_max: 12000.0
+      valid_min: -5.0
+  
+  PRES_quality_control:
+    type: "i1"
+    dimensions: ["TIME"]
+    fill_value: 99
+    attributes:
+      long_name: "quality flag for sea_water_pressure"
+      standard_name: "sea_water_pressure status_flag"
+      flag_values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      flag_meanings: "No_QC_performed Good_data Probably_good_data Bad_data_that_are_potentially_correctable Bad_data Value_changed Not_used Not_used Not_used Missing_value"
+  
+  TEMP:
+    type: "f4"
+    dimensions: ["TIME"]
+    fill_value: -999999.0
+    attributes:
+      ancillary_variables: "TEMP_quality_control"
+      coordinates: "TIME LATITUDE LONGITUDE NOMINAL_DEPTH"
+      long_name: "sea_water_temperature"
+      standard_name: "sea_water_temperature"
+      units: "degrees_Celsius"
+      valid_max: 40.0
+      valid_min: -2.5
+  
+  TEMP_quality_control:
+    type: "i1"
+    dimensions: ["TIME"]
+    fill_value: 99
+    attributes:
+      long_name: "quality flag for sea_water_temperature"
+      standard_name: "sea_water_temperature status_flag"
+      flag_values: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+      flag_meanings: "No_QC_performed Good_data Probably_good_data Bad_data_that_are_potentially_correctable Bad_data Value_changed Not_used Not_used Not_used Missing_value"
