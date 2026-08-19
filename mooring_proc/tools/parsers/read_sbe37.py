@@ -66,10 +66,13 @@ def read_sbe37(input_path, config=None):
 
     metadata_only_suffixes = {".hex", ".xml", ".xmlcon", ".hdr"}
     if suffix in metadata_only_suffixes:
-        raise ValueError(
-            f"SBE37 parser: {suffix} files are metadata-only.  "
-            "Provide the matching .cnv or .asc file as input_path."
-        )
+        companion = _resolve_companion_data_file(resolved)
+        if companion is None:
+            raise ValueError(
+                f"SBE37 parser: {suffix} files are metadata-only and no matching .cnv/.asc file was found."
+            )
+        resolved = companion
+        suffix = resolved.suffix.lower()
 
     if suffix == ".cnv":
         dataframe, dataset = _parse_cnv(resolved, row)
@@ -398,3 +401,14 @@ def _resolve_input_path(input_path: Any, row: dict[str, Any]) -> Path:
     base = base.resolve() if base.is_absolute() else (Path.cwd() / base).resolve()
     return base / str(data_in_file).strip()
 
+
+def _resolve_companion_data_file(metadata_file: Path) -> Path | None:
+    preferred = [metadata_file.with_suffix(".cnv"), metadata_file.with_suffix(".asc")]
+    for candidate in preferred:
+        if candidate.exists():
+            return candidate
+    for suffix in ("*.cnv", "*.asc"):
+        matches = sorted(metadata_file.parent.glob(suffix))
+        if matches:
+            return matches[0]
+    return None

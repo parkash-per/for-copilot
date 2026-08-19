@@ -1,2 +1,95 @@
-# Placeholder schema for aqd_schema
-# TODO: Define required fields, types, and validation rules.
+instrument: "AQD"
+instrument_full_name: "Nortek Aquadopp"
+
+default_channel_code: "UVTD"
+default_keywords: "DEPTH, LATITUDE, LONGITUDE, NOMINAL_DEPTH, TEMP, TIME, UCUR, VCUR"
+default_title: "Nortek Aquadopp current meter data from {location}"
+
+output_variables:
+  TIME:
+    type: "f8"
+    dimensions: ["TIME"]
+    attributes:
+      long_name: "time"
+      standard_name: "time"
+      units: "days since 1950-01-01T00:00:00 UTC"
+  
+  LATITUDE:
+    type: "f8"
+    dimensions: []
+    attributes:
+      long_name: "latitude"
+      standard_name: "latitude"
+      units: "degrees_north"
+  
+  LONGITUDE:
+    type: "f8"
+    dimensions: []
+    attributes:
+      long_name: "longitude"
+      standard_name: "longitude"
+      units: "degrees_east"
+  
+  NOMINAL_DEPTH:
+    type: "f4"
+    dimensions: []
+    attributes:
+      long_name: "nominal depth"
+      standard_name: "depth"
+      units: "m"
+  
+  TEMP:
+    type: "f4"
+    dimensions: ["TIME"]
+    attributes:
+      long_name: "sea_water_temperature"
+      standard_name: "sea_water_temperature"
+      units: "degrees_Celsius"
+  
+  TEMP_quality_control:
+    type: "i1"
+    dimensions: ["TIME"]
+    attributes:
+      long_name: "quality flag for sea_water_temperature"
+  
+  UCUR:
+    type: "f4"
+    dimensions: ["TIME"]
+    attributes:
+      long_name: "eastward_sea_water_velocity"
+      standard_name: "eastward_sea_water_velocity"
+      units: "m/s"
+  
+  UCUR_quality_control:
+    type: "i1"
+    dimensions: ["TIME"]
+    attributes:
+      long_name: "quality flag for eastward_sea_water_velocity"
+  
+  VCUR:
+    type: "f4"
+    dimensions: ["TIME"]
+    attributes:
+      long_name: "northward_sea_water_velocity"
+      standard_name: "northward_sea_water_velocity"
+      units: "m/s"
+  
+  VCUR_quality_control:
+    type: "i1"
+    dimensions: ["TIME"]
+    attributes:
+      long_name: "quality flag for northward_sea_water_velocity"
+  
+  DEPTH:
+    type: "f4"
+    dimensions: ["TIME"]
+    attributes:
+      long_name: "actual depth"
+      standard_name: "depth"
+      units: "m"
+  
+  DEPTH_quality_control:
+    type: "i1"
+    dimensions: ["TIME"]
+    attributes:
+      long_name: "quality flag for depth"
