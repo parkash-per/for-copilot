@@ -146,6 +146,4 @@ def run_proc1(config, instrument_id=None, source_path=None):
         "review_dataset": dataset_with_qc,
         "deployment_windows": deployment_windows,
         "output_path": proc_1_output,
-        "pre_trim_plot": None,
-        "post_trim_plot": None,
     }

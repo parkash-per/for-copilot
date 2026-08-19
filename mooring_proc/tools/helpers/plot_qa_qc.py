@@ -156,7 +156,7 @@ def plot_data_by_qc(
         6: "#BDBDBD",
         7: "#BDBDBD",
         8: "#BDBDBD",
-        9: "#FFFFFF",
+        9: "#4D4D4D",
     }
     var_colors = {
         "PRES": "#636EFA",
