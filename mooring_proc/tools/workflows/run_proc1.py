@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
+import xarray as xr
 
 from ..database_lookup import get_instrument_context, update_metadata_file_fields
 from ..imos.writer import build_output_filename, write_imos_file
@@ -86,6 +87,45 @@ def _select_dataset(parsed: dict[str, Any], config: dict[str, Any]):
     return parsed["dataset"]
 
 
+def _as_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _resolve_stage_file(stage_dir: Path, configured_name: Any) -> Path:
+    if configured_name is not None and str(configured_name).strip():
+        candidate = stage_dir / str(configured_name).strip()
+        if candidate.exists():
+            return candidate
+    candidates = sorted(stage_dir.glob("*.nc"))
+    if not candidates:
+        raise FileNotFoundError(f"No NetCDF files found in {stage_dir}")
+    return candidates[-1]
+
+
+def _resolve_existing_proc1_path(row, config: dict[str, Any]) -> Path:
+    explicit_path = (
+        config.get("proc_1_input_dataset")
+        or config.get("existing_proc1_path")
+        or config.get("existing_proc_1_path")
+    )
+    if explicit_path is not None and str(explicit_path).strip():
+        path = Path(str(explicit_path)).expanduser()
+        if not path.is_absolute():
+            path = (Path.cwd() / path).resolve()
+        else:
+            path = path.resolve()
+        if not path.exists():
+            raise FileNotFoundError(f"Configured proc_1_input_dataset does not exist: {path}")
+        return path
+
+    proc_1_dir = _stage_dir(row.get("proc_1_path"))
+    return _resolve_stage_file(proc_1_dir, row.get("proc_1_file"))
+
+
 def run_proc1(config, instrument_id=None, source_path=None):
     """Run proc_1 for AQD, SBE26, SBE37, RBRQ, or SIG500."""
     metadata_source = _metadata_source(config)
@@ -97,6 +137,20 @@ def run_proc1(config, instrument_id=None, source_path=None):
     )
     inst_type = _instrument_type(row)
     parser = _PARSERS[inst_type]
+
+    if _as_bool(config.get("reuse_existing_proc1", False)):
+        proc_1_path = _resolve_existing_proc1_path(row, config)
+        with xr.open_dataset(proc_1_path) as existing:
+            existing_dataset = existing.load()
+        update_metadata_file_fields(metadata_source, inst_deploy_id, {"proc_1_file": proc_1_path.name})
+        return {
+            "metadata_row": row,
+            "dataset": existing_dataset,
+            "review_dataset": existing_dataset,
+            "deployment_windows": [],
+            "output_path": str(proc_1_path),
+            "reused_existing": True,
+        }
 
     parsed = parser(source_path, config={"metadata_row": row.to_dict()})
     dataset = _select_dataset(parsed, config)
@@ -146,4 +200,5 @@ def run_proc1(config, instrument_id=None, source_path=None):
         "review_dataset": dataset_with_qc,
         "deployment_windows": deployment_windows,
         "output_path": proc_1_output,
+        "reused_existing": False,
     }
