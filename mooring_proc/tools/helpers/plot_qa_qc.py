@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Iterable, Mapping, Optional, Sequence, Tuple, Union
 
@@ -9,6 +10,8 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _to_py_dt(value):
@@ -56,7 +59,7 @@ def save_plotly_figure(
     else:
         raise ValueError(f"Unsupported extension '{ext}'")
 
-    print(f"Saved plot: {out_path}")
+    LOGGER.info("Saved plot: %s", out_path)
     return out_path
 
 
@@ -178,11 +181,9 @@ def plot_data_by_qc(
 
     global_flags = None
     per_var_flags = None
-    if flags_to_plot is None:
-        pass
-    elif isinstance(flags_to_plot, dict):
+    if isinstance(flags_to_plot, dict):
         per_var_flags = {key: set(int(item) for item in value) for key, value in flags_to_plot.items()}
-    else:
+    elif flags_to_plot is not None:
         global_flags = set(int(item) for item in flags_to_plot)
 
     show_legend = bool(legend) if legend is not None else False
