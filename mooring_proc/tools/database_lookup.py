@@ -61,28 +61,46 @@ def _coerce_int_text(value: Any) -> str:
         return str(value).strip()
 
 
+def _normalize_identifier(value: Any) -> str:
+    if _is_blank(value):
+        return ""
+    text = str(value).strip()
+    parsed = pd.to_numeric(text, errors="coerce")
+    if pd.notna(parsed):
+        number = float(parsed)
+        if number.is_integer():
+            return str(int(number))
+        return format(number, "g")
+    return text
+
+
+def _identifier_match_mask(series: pd.Series, value: Any) -> pd.Series:
+    normalized_target = _normalize_identifier(value)
+    normalized_series = series.map(_normalize_identifier)
+    return normalized_series == normalized_target
+
+
 def _find_row_index(metadata_table: pd.DataFrame, instrument_id: Any, deployment_id: Any = None) -> Any:
     if "inst_deploy_ID" in metadata_table.columns:
-        mask = metadata_table["inst_deploy_ID"].astype(str).str.strip() == str(instrument_id).strip()
+        mask = _identifier_match_mask(metadata_table["inst_deploy_ID"], instrument_id)
         matches = metadata_table.index[mask]
         if len(matches) == 1:
             return matches[0]
         if len(matches) > 1 and deployment_id is None:
             return matches[0]
         if len(matches) > 1 and "deployment_id" in metadata_table.columns:
-            deployment_mask = (
-                metadata_table.loc[matches, "deployment_id"].astype(str).str.strip()
-                == str(deployment_id).strip()
+            deployment_mask = _identifier_match_mask(
+                metadata_table.loc[matches, "deployment_id"],
+                deployment_id,
             )
             deployment_matches = metadata_table.loc[matches].index[deployment_mask]
             if len(deployment_matches) == 1:
                 return deployment_matches[0]
 
     if {"inst_id", "deployment_id"}.issubset(metadata_table.columns) and deployment_id is not None:
-        mask = (
-            metadata_table["inst_id"].astype(str).str.strip() == str(instrument_id).strip()
-        ) & (
-            metadata_table["deployment_id"].astype(str).str.strip() == str(deployment_id).strip()
+        mask = _identifier_match_mask(metadata_table["inst_id"], instrument_id) & _identifier_match_mask(
+            metadata_table["deployment_id"],
+            deployment_id,
         )
         matches = metadata_table.index[mask]
         if len(matches) == 1:
@@ -252,9 +270,7 @@ def list_instruments(
         ]
 
     if deployment_id is not None and "deployment_id" in filtered.columns:
-        filtered = filtered.loc[
-            filtered["deployment_id"].astype(str).str.strip() == str(deployment_id).strip()
-        ]
+        filtered = filtered.loc[_identifier_match_mask(filtered["deployment_id"], deployment_id)]
 
     if not include_paths:
         drop_columns = [column for column in filtered.columns if column.endswith("_path")]
