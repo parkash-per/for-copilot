@@ -8,6 +8,12 @@ from typing import Any
 import pandas as pd
 
 
+METADATA_CSV = Path(
+    "/datasets/work/oa-srsalt/work/preqa/SWOT/cal_val/jason_calval/all_mooring_data/"
+    "reference_mooring_proc_info/satellite_altimetry_moorings_metadata.csv"
+)
+
+
 def _is_blank(value: Any) -> bool:
     if value is None:
         return True
@@ -17,27 +23,43 @@ def _is_blank(value: Any) -> bool:
     return text == "" or text.lower() in {"nan", "none"}
 
 
-def _coerce_table(source: Any, table_name: str | None = None) -> tuple[pd.DataFrame, Path | None]:
-    if isinstance(source, pd.DataFrame):
-        table = source.copy()
-        table.columns = table.columns.str.strip()
-        return table, None
-
-    if isinstance(source, dict) and table_name and table_name in source:
-        return _coerce_table(source[table_name], None)
-
+def _coerce_table(source: Any = None) -> tuple[pd.DataFrame, Path]:
     if _is_blank(source):
-        raise ValueError("A metadata table source is required.")
-
-    source_path = Path(str(source)).expanduser()
-    if not source_path.is_absolute():
-        source_path = (Path.cwd() / source_path).resolve()
+        source_path = METADATA_CSV
     else:
-        source_path = source_path.resolve()
+        source_path = Path(str(source)).expanduser()
+        if not source_path.is_absolute():
+            source_path = (Path.cwd() / source_path).resolve()
+        else:
+            source_path = source_path.resolve()
 
     separator = "\t" if source_path.suffix.lower() in {".tsv", ".tab"} else ","
     table = pd.read_csv(source_path, sep=separator)
+
     table.columns = table.columns.str.strip()
+
+    string_id_columns = [
+        "inst_deploy_ID",
+        "deployment_id",
+        "inst_id",
+        "proc_1_file",
+        "proc_2_file",
+        "data_in_file",
+        "imos_deliverables_file",
+        "imos_file",
+        "data_in_path",
+        "proc_1_path",
+        "proc_2_path",
+        "imos_deliverables_path",
+        "imos_path",
+        "location",
+        "inst_type",
+        "mooring_channels",
+    ]
+    for column in string_id_columns:
+        if column in table.columns:
+            table[column] = table[column].astype("string").fillna("")
+
     return table, source_path
 
 
@@ -110,35 +132,31 @@ def _find_row_index(metadata_table: pd.DataFrame, instrument_id: Any, deployment
 
 
 def _build_cfg(row: pd.Series) -> dict[str, Any]:
-    time_start = row.get("time_coverage_start", row.get("deploy_date", ""))
-    time_end = row.get("time_coverage_end", row.get("recovery_date", ""))
     return {
-        "inst_deploy_ID": row.get("inst_deploy_ID", ""),
+        "inst_deploy_ID": str(row.get("inst_deploy_ID", "")),
         "input_file": f"{row.get('data_in_path', '')}/{row.get('data_in_file', '')}".strip("/"),
-        "data_in_path": row.get("data_in_path", ""),
-        "data_in_file": row.get("data_in_file", ""),
-        "proc_1_path": row.get("proc_1_path", ""),
-        "proc_1_file": row.get("proc_1_file", ""),
-        "proc_2_path": row.get("proc_2_path", ""),
-        "proc_2_file": row.get("proc_2_file", ""),
-        "imos_deliverables_path": row.get("imos_deliverables_path", row.get("imos_path", "")),
-        "imos_deliverables_file": row.get("imos_deliverables_file", row.get("imos_file", "")),
-        "location": row.get("location", ""),
-        "deployment_id": row.get("deployment_id", ""),
+        "data_in_path": str(row.get("data_in_path", "")),
+        "data_in_file": str(row.get("data_in_file", "")),
+        "proc_1_path": str(row.get("proc_1_path", "")),
+        "proc_1_file": str(row.get("proc_1_file", "")),
+        "proc_2_path": str(row.get("proc_2_path", "")),
+        "proc_2_file": str(row.get("proc_2_file", "")),
+        "imos_deliverables_path": str(row.get("imos_deliverables_path", row.get("imos_path", ""))),
+        "imos_deliverables_file": str(row.get("imos_deliverables_file", row.get("imos_file", ""))),
+        "location": str(row.get("location", "")),
+        "deployment_id": str(row.get("deployment_id", "")),
         "longitude": row.get("longitude", ""),
         "latitude": row.get("latitude", ""),
-        "time_coverage_start": time_start,
-        "time_coverage_end": time_end,
-        "time_coverage_start_yyyymm": _format_yyyymm(time_start),
-        "time_coverage_end_yyyymm": _format_yyyymm(time_end),
-        "inst_type": row.get("inst_type", ""),
+        "time_coverage_start": row.get("time_coverage_start", ""),
+        "time_coverage_end": row.get("time_coverage_end", ""),
+        "inst_type": str(row.get("inst_type", "")),
         "instrument": str(row.get("inst_type", "")).lower(),
-        "inst_id": row.get("inst_id", ""),
+        "inst_id": str(row.get("inst_id", "")),
         "mooring_channels": str(row.get("mooring_channels", "")),
         "inst_channels": str(row.get("mooring_channels", row.get("inst_channels", ""))),
         "nominal_depth": row.get("nominal_depth", ""),
         "nominal_inst_depth": row.get("nominal_inst_depth", ""),
-        "version": row.get("version", "1"),
+        "version": str(row.get("version", "1")),
         "deploy_date": row.get("deploy_date", ""),
         "recovery_date": row.get("recovery_date", ""),
         "serial": _coerce_int_text(row.get("inst_id", "")),
@@ -153,7 +171,7 @@ def _format_metadata_lines(row: pd.Series) -> list[str]:
         f"position       : {row.get('longitude', '')}, {row.get('latitude', '')}",
         f"nominal_depth  : {row.get('nominal_depth', '')}",
         f"instrument     : {row.get('inst_type', '')} | {row.get('inst_id', '')} | {row.get('nominal_inst_depth', '')}",
-        f"time_coverage  : {row.get('time_coverage_start', row.get('deploy_date', ''))} to {row.get('time_coverage_end', row.get('recovery_date', ''))}",
+        f"time_coverage  : {row.get('time_coverage_start', '')} to {row.get('time_coverage_end', '')}",
         f"data_in_path   : {row.get('data_in_path', '')}",
         f"data_in_file   : {row.get('data_in_file', '')}",
         f"proc_1_path    : {row.get('proc_1_path', '')}",
@@ -173,15 +191,15 @@ def _resolve_identifier(file_record: Any) -> tuple[Any, Any]:
     return file_record, None
 
 
-def load_metadata_table(source, table_name=None):
-    """Load a metadata table from a dataframe or delimited file."""
-    metadata_table, _ = _coerce_table(source, table_name=table_name)
+def load_metadata_table():
+    """Load the hardcoded metadata table."""
+    metadata_table, _ = _coerce_table()
     return metadata_table
 
 
-def get_instrument_context(metadata_table, instrument_id, deployment_id=None):
+def get_instrument_context(instrument_id, deployment_id=None):
     """Return ``(metadata_table, row, cfg, metadata_lines)`` for one deployment."""
-    table, _ = _coerce_table(metadata_table)
+    table, _ = _coerce_table()
     row_index = _find_row_index(table, instrument_id, deployment_id=deployment_id)
     row = table.loc[row_index].copy()
     cfg = _build_cfg(row)
@@ -189,12 +207,12 @@ def get_instrument_context(metadata_table, instrument_id, deployment_id=None):
     return table, row, cfg, metadata_lines
 
 
-def update_metadata_file_fields(metadata_table, file_record, updates):
-    """Update output filename fields in a metadata table."""
+def update_metadata_file_fields(file_record, updates):
+    """Update output filename fields in the hardcoded metadata table."""
     if not isinstance(updates, dict) or not updates:
         raise ValueError("updates must be a non-empty mapping.")
 
-    table, source_path = _coerce_table(metadata_table)
+    table, source_path = _coerce_table()
     inst_deploy_id, deployment_id = _resolve_identifier(file_record)
     row_index = _find_row_index(table, inst_deploy_id, deployment_id=deployment_id)
 
@@ -216,14 +234,11 @@ def update_metadata_file_fields(metadata_table, file_record, updates):
             table[target_column] = table[target_column].astype(object)
         table.at[row_index, target_column] = "" if value is None else str(value)
 
-    if source_path is not None:
-        table.to_csv(source_path, index=False)
-
+    table.to_csv(source_path, index=False)
     return table.loc[row_index].copy()
 
 
 def list_instruments(
-    metadata_table,
     year=None,
     location=None,
     instrument=None,
@@ -232,7 +247,7 @@ def list_instruments(
     include_paths=False,
 ):
     """List instruments using lightweight metadata filters."""
-    table, _ = _coerce_table(metadata_table)
+    table, _ = _coerce_table()
     filtered = table.copy()
 
     if year is not None:
